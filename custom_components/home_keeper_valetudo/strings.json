@@ -28,7 +28,7 @@
         "data_description": {
           "threshold": "A task is raised when a consumable has this much of its life left or less. Minute counters are turned into percent of their learned lifetime.",
           "reset_margin": "A rise of at least this many percentage points is read as a counter reset and records the replacement.",
-          "reset_on_done": "Presses the consumable's reset button from Valetudo. If the robot is offline, the reset is repeated once it reports again, and the task does not re-arm meanwhile.",
+          "reset_on_done": "Presses the consumable's reset button from Valetudo. If the robot is offline, the reset is repeated once it reports again, and the task does not re-arm meanwhile. When off, a task you tick off stays quiet until you reset the counter in Valetudo, and that reset is not counted as a second replacement.",
           "excluded_entities": "Their tasks are removed.",
           "stock_enabled": "One appliance per robot with brushes, filters, mop pads and dust bags as parts. A replacement draws one spare; set a reorder point and 'Auto-create buy task' on a part to get a buy task. Cleaning chores have no stock."
         }

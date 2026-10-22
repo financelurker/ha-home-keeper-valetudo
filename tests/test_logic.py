@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from custom_components.home_keeper_valetudo import logic
 from custom_components.home_keeper_valetudo.const import SOURCE_NS
 
@@ -29,10 +31,12 @@ def c(
     )
 
 
-def task(*, armed=False, enabled=True, pending=False, paused=False, tid="t1"):
+def task(*, armed=False, enabled=True, pending=False, awaiting=False, paused=False, tid="t1"):
     src = {"sensor_uid": UID, "device_id": "dev1"}
     if pending:
         src["pending_reset"] = True
+    if awaiting:
+        src["awaiting_reset"] = True
     if paused:
         src["paused"] = True
     return {
@@ -109,10 +113,32 @@ def test_done_in_home_keeper_presses_reset_and_waits_for_it():
     assert kinds(logic.plan_reading([task(pending=True)], c(8), None, S)) == ["PressReset"]
 
 
-def test_no_reset_without_button_or_option():
-    assert logic.plan_user_completion("t1", task(), c(8, button=None), S) == []
-    off = logic.Settings(config_entry_id="e", reset_on_done=False)
-    assert logic.plan_user_completion("t1", task(), c(8), off) == []
+def test_done_without_reset_waits_for_the_reset_in_valetudo():
+    off = logic.Settings(config_entry_id="e", threshold=10, reset_margin=20, reset_on_done=False)
+    for settings, consumable in ((off, c(8)), (S, c(8, button=None))):
+        a = logic.plan_user_completion("t1", task(), consumable, settings)
+        assert kinds(a) == ["SetSource"]  # no press
+        assert a[0].source[SOURCE_NS]["awaiting_reset"] is True
+        assert "pending_reset" not in a[0].source[SOURCE_NS]
+        # Still low, even lower, or unknown: quiet, no re-arm, no press.
+        for value, prev in ((8, 8), (3, 8), (8, None)):
+            low = replace(consumable, value=value)
+            assert logic.plan_reading([task(awaiting=True)], low, prev, settings) == []
+        # The reset in Valetudo clears the mark only — no second replacement.
+        a = logic.plan_reading([task(awaiting=True)], c(100), 3, settings)
+        assert kinds(a) == ["SetSource"]
+        assert "awaiting_reset" not in a[0].source[SOURCE_NS]
+        a = logic.plan_reading([task(awaiting=True)], c(100), None, settings)  # missed
+        assert kinds(a) == ["SetSource"]
+    # Not worn when ticked off: nothing to wait for.
+    assert logic.plan_user_completion("t1", task(), c(80), off) == []
+    assert logic.plan_user_completion("t1", task(), c(8, paused=True), off) == []
+    # Option switched on later: an awaiting mark never presses on its own.
+    assert logic.plan_reading([task(awaiting=True)], c(8), 8, S) == []
+    # Pressing replaces an old awaiting mark with the pending one.
+    a = logic.plan_user_completion("t1", task(awaiting=True), c(8), S)
+    assert kinds(a) == ["SetSource", "PressReset"]
+    assert "awaiting_reset" not in a[0].source[SOURCE_NS]
 
 
 def test_pause_resume_and_user_switched_off():

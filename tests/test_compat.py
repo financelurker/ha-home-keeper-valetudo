@@ -55,6 +55,9 @@ def test_source_keys() -> None:
         }
     }
     # Marks the glue keeps on its tasks across restarts.
-    marked = logic._ns_with(None, brush, paused=True, pending=True)["home_keeper_valetudo"]
+    marked = logic._ns_with(None, brush, paused=True, pending=True, awaiting=True)[
+        "home_keeper_valetudo"
+    ]
     assert marked["paused"] is True
     assert marked["pending_reset"] is True
+    assert marked["awaiting_reset"] is True
