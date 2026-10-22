@@ -1,0 +1,38 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Home Keeper — Valetudo-Verbrauchsteile",
+        "description": "Macht aus verbrauchten Teilen deiner Valetudo-Roboter (über MQTT) Home-Keeper-Tasks. Eine Instanz deckt alle Roboter ab; die Einstellungen findest du danach unter Optionen."
+      }
+    },
+    "abort": {
+      "already_configured": "Bereits eingerichtet – eine Instanz deckt alle Valetudo-Roboter ab.",
+      "single_instance_allowed": "Bereits eingerichtet – eine Instanz deckt alle Valetudo-Roboter ab."
+    }
+  },
+  "options": {
+    "error": {
+      "limits_too_high": "Untergrenze plus Reset-Erkennung darf 100 % nicht übersteigen."
+    },
+    "step": {
+      "init": {
+        "title": "Valetudo-Verbrauchsteile",
+        "data": {
+          "threshold": "Untergrenze",
+          "reset_margin": "Reset-Erkennung",
+          "reset_on_done": "Beim Abhaken den Zähler am Roboter zurücksetzen",
+          "excluded_entities": "Ignorierte Verbrauchsteile",
+          "stock_enabled": "Ersatzteile zählen"
+        },
+        "data_description": {
+          "threshold": "Ein Task wird fällig, wenn ein Teil nur noch so viel seiner Lebensdauer übrig hat. Minuten-Zähler werden in Prozent der gelernten Lebensdauer umgerechnet.",
+          "reset_margin": "Steigt der Wert um mindestens so viele Prozentpunkte, gilt das als Zähler-Reset und erfasst den Tausch.",
+          "reset_on_done": "Drückt den Reset-Button des Teils aus Valetudo. Ist der Roboter offline, wird der Reset wiederholt, sobald er sich meldet; bis dahin wird der Task nicht erneut fällig.",
+          "excluded_entities": "Ihre Tasks werden entfernt.",
+          "stock_enabled": "Pro Roboter eine Appliance mit Bürsten, Filtern, Wischpads und Staubbeuteln als Teile. Ein Tausch zieht ein Ersatzteil ab; mit Nachbestellgrenze und „Kauf-Task automatisch anlegen“ am Teil bekommst du einen Kauf-Task. Reinigungsaufgaben haben kein Lager."
+        }
+      }
+    }
+  }
+}

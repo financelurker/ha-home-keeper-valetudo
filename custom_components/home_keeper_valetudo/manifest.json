@@ -1,0 +1,20 @@
+{
+  "domain": "home_keeper_valetudo",
+  "name": "Home Keeper — Valetudo consumables",
+  "after_dependencies": [
+    "mqtt",
+    "home_keeper"
+  ],
+  "codeowners": [
+    "@financelurker"
+  ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/financelurker/ha-home-keeper-valetudo",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/financelurker/ha-home-keeper-valetudo/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.0.0"
+}
