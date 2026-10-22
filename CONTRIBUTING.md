@@ -19,6 +19,8 @@ Thanks for helping out! Bug reports and pull requests are welcome.
   autodiscovery contract (the unique ids in `const.py`).
 - New user-facing texts go into both `translations/en.json` and `translations/de.json`
   (`strings.json` mirrors `en.json`), and task texts into `TEXT` in `const.py`.
+- The brand icon is generated from `scripts/brand/icon.svg`; change the SVG and re-render
+  (`scripts/brand/README.md`), don't edit the PNGs.
 
 Versions: the GitHub release tag is the only source of the version (see "Releases" in the
 README). `manifest.json` keeps the placeholder `0.0.0`; don't change it, and don't write the
