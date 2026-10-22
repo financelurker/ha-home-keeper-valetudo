@@ -316,4 +316,3 @@ async def test_boot_race_waits_for_home_keeper(hass, robot, caplog):
         for r in caplog.records
         if r.name.startswith("custom_components.home_keeper_valetudo") and r.levelno >= 30
     ]
-
