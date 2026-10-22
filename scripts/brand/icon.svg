@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4FC3F7"/>
+      <stop offset="1" stop-color="#0277BD"/>
+    </linearGradient>
+  </defs>
+  <!-- Home Keeper Valetudo brand icon. Drawn from scratch for this project (no template or
+       third-party artwork): a robot vacuum seen from above, with a side brush and a
+       consumable gauge running low. See scripts/brand/README.md. -->
+  <!-- side brush, sticking out under the body -->
+  <g stroke="#0277BD" stroke-width="8" stroke-linecap="round">
+    <line x1="62" y1="194" x2="10" y2="206"/>
+    <line x1="62" y1="194" x2="34" y2="244"/>
+    <line x1="62" y1="194" x2="14" y2="160"/>
+  </g>
+  <!-- body -->
+  <circle cx="132" cy="124" r="108" fill="url(#g)"/>
+  <!-- front bumper -->
+  <path d="M 52 84 A 92 92 0 0 1 212 84" fill="none" stroke="#ffffff" stroke-opacity="0.45"
+        stroke-width="10" stroke-linecap="round"/>
+  <!-- lidar turret -->
+  <circle cx="132" cy="92" r="26" fill="#ffffff"/>
+  <circle cx="132" cy="92" r="11" fill="#4FC3F7"/>
+  <!-- consumable gauge: four segments, one left -->
+  <g fill="#ffffff">
+    <rect x="76" y="150" width="24" height="34" rx="7"/>
+    <rect x="106" y="150" width="24" height="34" rx="7" fill-opacity="0.35"/>
+    <rect x="136" y="150" width="24" height="34" rx="7" fill-opacity="0.35"/>
+    <rect x="166" y="150" width="24" height="34" rx="7" fill-opacity="0.35"/>
+  </g>
+</svg>
