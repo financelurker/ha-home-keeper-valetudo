@@ -12,8 +12,8 @@ permissions:
   contents: read
 
 env:
-  # The tests run against this release of Home Keeper (its test fake and the real
-  # integration). Keep it in step with the version users run.
+  # The tests run against this release of Home Keeper's test fake. Keep it in step
+  # with the version users run.
   HOME_KEEPER_REF: v0.32.0
 
 jobs:
