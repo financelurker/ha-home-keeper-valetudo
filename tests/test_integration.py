@@ -15,6 +15,7 @@ from pytest_homeassistant_custom_component.common import (
 from custom_components.home_keeper_valetudo.const import DOMAIN, SOURCE_NS
 from homeassistant.config_entries import ConfigEntryDisabler, ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.util import dt as dt_util
 
@@ -35,6 +36,16 @@ LIFE = {BRUSH: 18000, SENSORS: 1800}  # minutes, as Dreame reports them
 
 class _Fake(FakeHomeKeeper):
     """Home Keeper's fake, merging ``source`` on ``update_task`` like the real store."""
+
+    list_failures = 0  # list_tasks answers "not loaded" this many times (a reload)
+
+    async def _list_tasks(self, call):
+        if self.list_failures:
+            self.list_failures -= 1
+            raise HomeAssistantError(
+                translation_domain="home_keeper", translation_key="integration_not_loaded"
+            )
+        return await super()._list_tasks(call)
 
     async def _update_task(self, call) -> None:
         source_update = call.data.get("source")
@@ -273,3 +284,84 @@ async def test_boot_race_waits_for_home_keeper(hass, robot, caplog):
         for r in caplog.records
         if r.name.startswith("custom_components.home_keeper_valetudo") and r.levelno >= 30
     ]
+
+
+async def _armed(hass, hk):
+    await _learn_full_life(hass)
+    set_minutes(hass, BRUSH, 900)
+    await hass.async_block_till_done()
+    assert _task(hk)["next_due"]
+    assert len(_task(hk)["completions"]) == 1
+
+
+async def test_reset_while_home_keeper_is_down_is_caught_up(hass, robot):
+    hk = await setup_hk(hass)
+    await _setup_glue(hass)
+    await _armed(hass, hk)
+
+    hk.entry.mock_state(hass, ConfigEntryState.NOT_LOADED)
+    set_minutes(hass, BRUSH, 18000)  # reset in the Valetudo UI while Home Keeper reloads
+    await hass.async_block_till_done()
+    set_minutes(hass, BRUSH, 17990)  # and a later reading, still while it is down
+    await hass.async_block_till_done()
+    assert len(_task(hk)["completions"]) == 1
+
+    hk.entry.mock_state(hass, ConfigEntryState.LOADED)
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=30))
+    await hass.async_block_till_done()
+    brush = _task(hk)
+    assert brush["next_due"] is None
+    assert len(brush["completions"]) == 2
+
+    set_minutes(hass, BRUSH, 17980)  # later readings count nothing more
+    await hass.async_block_till_done()
+    assert len(_task(hk)["completions"]) == 2
+
+
+async def test_reset_seen_while_list_tasks_fails_is_caught_up(hass, robot):
+    hk = await setup_hk(hass)
+    await _setup_glue(hass)
+    await _armed(hass, hk)
+
+    hk.list_failures = 1
+    set_minutes(hass, BRUSH, 18000)  # reset in the Valetudo UI; list_tasks fails once
+    await hass.async_block_till_done()
+    assert len(_task(hk)["completions"]) == 1
+
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=30))
+    await hass.async_block_till_done()
+    brush = _task(hk)
+    assert brush["next_due"] is None
+    assert len(brush["completions"]) == 2
+
+    set_minutes(hass, BRUSH, 17990)
+    await hass.async_block_till_done()
+    assert len(_task(hk)["completions"]) == 2
+
+
+async def test_pending_reset_arriving_while_home_keeper_is_down(hass, robot):
+    _, _, pressed = robot
+    hk = await setup_hk(hass)
+    await _setup_glue(hass)
+    await _armed(hass, hk)
+
+    # Ticked off while the robot is offline: the press waits for the robot.
+    hass.states.async_set(BRUSH, "unavailable")
+    hass.states.async_set("button.d9_main_brush_reset", "unavailable")
+    hk.fire_user_completion(_task(hk)["id"])
+    await hass.async_block_till_done()
+    assert _task(hk)["source"][SOURCE_NS]["pending_reset"] is True
+
+    # The user resets it in Valetudo while Home Keeper reloads.
+    hk.entry.mock_state(hass, ConfigEntryState.NOT_LOADED)
+    hass.states.async_set("button.d9_main_brush_reset", "unknown")
+    set_minutes(hass, BRUSH, 18000)
+    await hass.async_block_till_done()
+
+    hk.entry.mock_state(hass, ConfigEntryState.LOADED)
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=30))
+    await _drain(hass)
+    brush = _task(hk)
+    assert pressed == []
+    assert "pending_reset" not in brush["source"][SOURCE_NS]
+    assert len(brush["completions"]) == 2  # the learn-reset + the user's, no extra

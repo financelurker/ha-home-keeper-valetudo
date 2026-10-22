@@ -275,19 +275,23 @@ class ValetudoGlue:
             return
         c = self._with_state(c, new_state.state, new_state.attributes)
         self._consumables[entity_id] = c
-        prev = self._prev.get(c.uid)
-        if c.value is not None:
-            self._prev[c.uid] = c.value
+        # The previous reading moves on only once a reading has been planned against
+        # Home Keeper. While it is down (or its task list fails) the old one stays, so
+        # the reconcile that catches up still sees a reset that happened meanwhile.
         if not self._hk_loaded():
             self._note_down()
             return
         async with self._lock:
             try:
                 tasks = await self._list_tasks()
+                prev = self._prev.get(c.uid)
                 for action in logic.plan_reading(tasks, c, prev, self.settings):
                     await self._execute(action)
             except HomeKeeperUnavailable:
+                self._schedule_catch_up()
                 return
+            if c.value is not None:
+                self._prev[c.uid] = c.value
 
     async def _on_hk_completed(self, event: Event) -> None:
         """A user ticked a task off: press the robot's reset button."""
