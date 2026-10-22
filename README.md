@@ -43,7 +43,7 @@ A manual copy can be switched to HACS later: download it in HACS over the existi
 |---|---|---|
 | Low limit | 10 % | A task is raised when a consumable has this much of its life left or less. |
 | Reset detection | 20 points | A rise of at least this much is read as a counter reset and records the replacement. |
-| Reset the robot's counter when a task is marked done | on | Presses the consumable's reset button in Valetudo. |
+| Reset the robot's counter when a task is marked done | on | Presses the consumable's reset button in Valetudo. When off, a task you mark done stays quiet until you reset the counter in Valetudo yourself; that reset is not counted as a second replacement. |
 | Consumables to ignore | none | Their tasks are removed. |
 | Count spare parts | on | The spare-parts appliance per robot, see below. |
 
@@ -55,6 +55,7 @@ A manual copy can be switched to HACS later: download it in HACS over the existi
 | the counter is reset in Valetudo | the task is completed, the replacement is in its history and one spare is taken off the stock, also for an early replacement |
 | you mark the task done in Home Keeper | the glue presses the consumable's reset button, the counter is full again |
 | … while the robot is offline | the reset is repeated once the robot reports again; until then the task does not arm again |
+| … with the reset option off (or no reset button) while the counter is still low | the replacement is recorded; the task does not arm again on the old counter and stays quiet until the counter is reset in Valetudo, and that reset is not counted a second time |
 | unknown value, robot offline | nothing |
 
 **Minutes or percent.** Depending on the robot, Valetudo reports percent or minutes left. Minutes are turned into percent of a **learned lifetime**: the highest value the counter has shown, so right after a reset the full life. Until the first reset that is the highest value seen so far, so the first task may come a little late. Learned lifetimes survive restarts.

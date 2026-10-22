@@ -225,6 +225,49 @@ async def test_done_while_robot_offline_waits_and_retries(hass, robot):
     assert len(brush["completions"]) == 2  # the learn-reset + the user's, no extra
 
 
+@pytest.mark.parametrize("options", [{"reset_on_done": False}, {}])
+async def test_done_without_reset_waits_for_the_reset_in_valetudo(hass, robot, options):
+    _, _, pressed = robot
+    if options == {}:  # the option is on, but the robot has no usable reset button
+        er.async_get(hass).async_update_entity(
+            "button.d9_main_brush_reset", disabled_by=er.RegistryEntryDisabler.USER
+        )
+    hk = await setup_hk(hass)
+    await _setup_glue(hass, options)
+    await _learn_full_life(hass)
+    asset = next(iter(hk.assets.values()))
+    hk.part_named(asset["id"], "Main brush")["stock"] = 2
+    set_minutes(hass, BRUSH, 900)
+    await hass.async_block_till_done()
+    assert _task(hk)["next_due"]
+
+    # Ticked off in Home Keeper; the counter is not reset, it keeps running down.
+    hk.fire_user_completion(_task(hk)["id"])
+    await _drain(hass)
+    assert pressed == []
+    for minutes in (850, 600, 0):
+        set_minutes(hass, BRUSH, minutes)
+        await hass.async_block_till_done()
+        assert _task(hk)["next_due"] is None  # quiet until the counter is reset
+    assert len(_task(hk)["completions"]) == 2
+
+    # Reset in Valetudo later: that is the replacement already recorded.
+    set_minutes(hass, BRUSH, 18000)
+    await hass.async_block_till_done()
+    brush = _task(hk)
+    assert len(brush["completions"]) == 2
+    assert "awaiting_reset" not in brush["source"][SOURCE_NS]
+    assert hk.part_named(asset["id"], "Main brush")["stock"] == 1
+
+    # The next wear cycle arms and counts as usual.
+    set_minutes(hass, BRUSH, 900)
+    await hass.async_block_till_done()
+    assert _task(hk)["next_due"]
+    set_minutes(hass, BRUSH, 18000)
+    await hass.async_block_till_done()
+    assert len(_task(hk)["completions"]) == 3
+
+
 async def test_disabled_mqtt_entry_pauses_and_resumes(hass, robot):
     mqtt_entry, _, _ = robot
     hk = await setup_hk(hass)
@@ -273,3 +316,4 @@ async def test_boot_race_waits_for_home_keeper(hass, robot, caplog):
         for r in caplog.records
         if r.name.startswith("custom_components.home_keeper_valetudo") and r.levelno >= 30
     ]
+

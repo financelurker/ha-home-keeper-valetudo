@@ -16,6 +16,9 @@ Per consumable (one Valetudo ``ConsumableMonitoringCapability`` sensor):
   the task *pending reset*. The jump that follows only clears the mark, so the
   replacement is not recorded twice. While pending, a stale low reading never re-arms
   the task; when the robot was offline, the press is repeated once it reports again.
+* **Ticked off without a reset** (option off, or no usable reset button) while the
+  counter is still low → the task is marked *awaiting reset*: it stays quiet (no
+  re-arm) until the counter is reset in Valetudo, and that jump only clears the mark.
 * **Disabled sensor** (MQTT entry, robot device or entity) → the task is paused, and
   resumed when it comes back. A task the user switched off is never touched.
 """
@@ -145,7 +148,7 @@ class CompleteTask:
 
 @dataclass(frozen=True)
 class SetSource:
-    """``update_task`` with only our ``source`` namespace (pending-reset mark)."""
+    """``update_task`` with only our ``source`` namespace (pending / awaiting marks)."""
 
     task_id: str
     uid: str
@@ -303,16 +306,25 @@ def is_pending(task: dict[str, Any] | None) -> bool:
     return bool((ns(task) or {}).get("pending_reset"))
 
 
+def is_awaiting(task: dict[str, Any] | None) -> bool:
+    return bool((ns(task) or {}).get("awaiting_reset"))
+
+
 def _ns_with(
     task: dict[str, Any] | None,
     c: Consumable,
     *,
     paused: bool | None = None,
     pending: bool | None = None,
+    awaiting: bool | None = None,
 ) -> dict[str, Any]:
-    """Our namespace for *task*, with the paused / pending marks changed as asked."""
+    """Our namespace for *task*, with the paused / pending / awaiting marks changed."""
     data = {**(ns(task) or {}), "sensor_uid": c.uid, "device_id": c.device_id}
-    for key, flag in (("paused", paused), ("pending_reset", pending)):
+    for key, flag in (
+        ("paused", paused),
+        ("pending_reset", pending),
+        ("awaiting_reset", awaiting),
+    ):
         if flag is True:
             data[key] = True
         elif flag is False:
@@ -388,13 +400,15 @@ def plan_reading(
     recovered = pct >= settings.threshold + settings.reset_margin
     jumped = prev_percent is not None and pct - prev_percent >= settings.reset_margin
 
-    if is_pending(task):
+    if is_pending(task) or is_awaiting(task):
         if jumped or recovered:
-            # The reset we pressed arrived; the replacement is already recorded.
-            return [SetSource(task["id"], c.uid, _ns_with(task, c, pending=False))]
-        if settings.reset_on_done and c.reset_entity_id:
+            # The reset we pressed (or waited for) arrived; the replacement is
+            # already recorded by the user's completion.
+            source = _ns_with(task, c, pending=False, awaiting=False)
+            return [SetSource(task["id"], c.uid, source)]
+        if is_pending(task) and settings.reset_on_done and c.reset_entity_id:
             return [PressReset(c.uid, c.reset_entity_id)]  # robot back: try again
-        return []
+        return []  # never re-arm on the old, unreset counter
 
     if jumped:
         # Reset outside Home Keeper (Valetudo UI, the button, an automation).
@@ -418,13 +432,23 @@ def plan_reading(
 def plan_user_completion(
     task_id: str, task: dict[str, Any] | None, c: Consumable | None, settings: Settings
 ) -> list[Action]:
-    """A user ticked our task off: reset the robot's counter, and expect the jump."""
-    if c is None or c.paused or not settings.reset_on_done or not c.reset_entity_id:
+    """A user ticked our task off: reset the robot's counter, and expect the jump.
+
+    Without a reset (option off, or no usable button) the counter stays where it is.
+    While it is still low, the task waits for the reset in Valetudo instead: no re-arm
+    on the old counter, and that reset is not recorded as a second replacement.
+    """
+    if c is None or c.paused:
         return []
-    return [
-        SetSource(task_id, c.uid, _ns_with(task, c, pending=True)),
-        PressReset(c.uid, c.reset_entity_id),
-    ]
+    if settings.reset_on_done and c.reset_entity_id:
+        return [
+            SetSource(task_id, c.uid, _ns_with(task, c, pending=True, awaiting=False)),
+            PressReset(c.uid, c.reset_entity_id),
+        ]
+    pct = c.percent
+    if pct is not None and pct >= settings.threshold + settings.reset_margin:
+        return []  # not worn: the next low reading is a new cycle
+    return [SetSource(task_id, c.uid, _ns_with(task, c, awaiting=True))]
 
 
 def plan_reconcile(
